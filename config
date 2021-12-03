@@ -1,0 +1,17 @@
+[core]
+	bare = false
+	repositoryformatversion = 0
+	filemode = false
+	symlinks = false
+	ignorecase = true
+	logallrefupdates = true
+[remote "origin"]
+	url = git@simplecelery_github:simplecelery/stellar-dyxs.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
+	puttykeyfile = D:\\My\\key\\simplecelery.ppk
+[user]
+	name = simplecelery
+	email = " 88178373+simplecelery@users.noreply.github.com"
+[branch "main"]
+	remote = origin
+	merge = refs/heads/main
