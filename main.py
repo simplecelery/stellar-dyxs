@@ -185,7 +185,7 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
                     imageinfo = item.select('div.module-item-cover > a > img')[0]
                 except:
                     imageinfo = item.select('div.module-item-cover > div > img')[0]
-                imgurl = imageinfo.get('data-src')
+                imgurl = self.dyxsurl + imageinfo.get('data-src')
                 try:
                     nameinfo = item.select('div.module-item-titlebox > a')[0]
                     name = nameinfo.string
@@ -255,7 +255,7 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
             headerselector = bs.find_all('div', class_= 'video-info-title')
             infoselector = bs.find_all('div', class_= 'video-info-items')
             if picselector:
-                picurl = picselector[0].get('data-src')
+                picurl = self.dyxsurl + picselector[0].get('data-src')
             if headerselector:
                 headinfo = headerselector[0].getText()
             if infoselector:
