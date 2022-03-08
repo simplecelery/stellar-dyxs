@@ -1,8 +1,8 @@
+import StellarPlayer
 import threading
 import time
 import bs4
 import requests
-import StellarPlayer
 import re
 import urllib.parse
 import urllib.request
@@ -10,7 +10,7 @@ import math
 import json
 import urllib3
 
-dyxx_urls = ['http://dyxs6.xyz', 'http://dyxs7.xyz', 'http://dyxs8.xyz', 'http://dyxs9.xyz', 'http://dyxs16.xyz', 'http://dyxs17.xyz','http://dianying.in', 'http://dianying.im', 'http://dianyingim.com'] 
+dyxx_urls = ['http://dyxs11.com','http://dyxs12.com','http://dyxs13.com','http://dyxs14.com','http://dyxs15.com','http://dyxs6.xyz', 'http://dyxs7.xyz', 'http://dyxs8.xyz', 'http://dyxs9.xyz', 'http://dyxs16.xyz', 'http://dyxs17.xyz','http://dianying.in', 'http://dianying.im', 'http://dianyingim.com'] 
 
 
 def concatUrl(url1, url2):
@@ -54,9 +54,10 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
     def getDyxsUrl(self):
         for url in dyxx_urls:
             urlCanOpen = True
+            print(url)
             try:
                 res = requests.get(url,timeout=3,verify=False)
-            except Exception:
+            except :
                 urlCanOpen = False
             if urlCanOpen:
                 if res.status_code == 200:
@@ -260,7 +261,7 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
                 headinfo = headerselector[0].getText()
             if infoselector:
                 for info in infoselector:
-                    infostr = infostr + info.getText() + '\\n'
+                    infostr = infostr + info.getText() + '\n'
             
             xlselector = bs.find_all('div', class_='module-tab-item tab-item') 
             jjselector = bs.find_all('div', class_='module-blocklist scroll-box scroll-box-y')
@@ -298,17 +299,17 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
                 'height':250
             },
             {'group':
-                {'type':'grid','name':'xllist','itemlayout':xl_list_layout,'value':self.xls,'separator':True,'itemheight':30,'itemwidth':80},
-                'height':45
+                {'type':'grid','name':'xllist','itemlayout':xl_list_layout,'value':self.xls,'separator':True,'itemheight':28,'itemwidth':80},
+                'height':60
             },
             {'type':'space','height':5},
             {'group':
                 {'type':'grid','name':'movielist','itemlayout':movie_list_layout,'value':actmovies,'separator':True,'itemheight':30,'itemwidth':60},
-                'height':150
+                'height':270
             }
         ]
         self.loading(True)
-        result,control = self.player.doModal(medianame,800,460,medianame,controls)  
+        result,control = self.player.doModal(medianame,800,600,medianame,controls)  
         if result == False:
             del self.allmovidesdata[medianame]
         
@@ -339,6 +340,7 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
         self.onProcessDetalPage(self.lastpage)
         
     def on_xl_click(self, page, listControl, item, itemControl):
+        self.player.updateControlValue(page,'movielist',[])
         if len(self.allmovidesdata[page]['allmovies']) > item:
             self.allmovidesdata[page]['actmovies'] = self.allmovidesdata[page]['allmovies'][item]
         self.player.updateControlValue(page,'movielist',self.allmovidesdata[page]['actmovies'])
