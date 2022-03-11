@@ -463,7 +463,7 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
                             date = ""
                         url = self.dyxsurl + nameinfo.get('href')
                         mediainfo = {}
-                        if name.find(wd) > 0:
+                        if name.find(wd) >= 0:
                             mediainfo["name"] = name
                             mediainfo["pic"] = imgurl
                             mediainfo["summary"] = detal.string
