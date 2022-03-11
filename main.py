@@ -54,13 +54,13 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
     def getDyxsUrl(self):
         for url in dyxx_urls:
             urlCanOpen = True
-            print(url)
             try:
-                res = requests.get(url,timeout=3,verify=False)
+                res = requests.get(url,timeout=5,verify=False)
             except :
                 urlCanOpen = False
             if urlCanOpen:
                 if res.status_code == 200:
+                    print("电影先生使用网址:" + url)
                     return url
         return ''
     
@@ -132,7 +132,6 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
         self.loading(True)
     
     def onMainMenuClick(self,pageId,control,*args):
-        print(control)
         self.loading()
         self.firstpage = ''
         self.previouspage = ''
@@ -142,11 +141,9 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
         self.secmenu = []
         pageurl = ''
         for cat in self.mainmenu:
-            print(cat['title'])
             if cat['title'] == control:
                 pageurl = self.dyxsurl + cat['url']
                 break
-        print(pageurl)
         if pageurl != '':
             self.onMainMenuReload(pageurl)
         self.loading(True)
@@ -236,10 +233,10 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
                         self.nextpage = self.dyxsurl + pages[n - 2].get('href')
                     if pages[n - 1]:
                         self.lastpage = self.dyxsurl + pages[n - 1].get('href')
-        print("self.firstpage:" + self.firstpage)
-        print("self.previouspage:" + self.previouspage)
-        print("self.nextpage:" + self.nextpage)
-        print("self.lastpage:" + self.lastpage)
+        #print("self.firstpage:" + self.firstpage)
+        #print("self.previouspage:" + self.previouspage)
+        #print("self.nextpage:" + self.nextpage)
+        #print("self.lastpage:" + self.lastpage)
                 
         
     def on_grid_click(self, page, listControl, item, itemControl):
@@ -348,11 +345,23 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
     def on_movieurl_click(self, page, listControl, item, itemControl):
         if len(self.allmovidesdata[page]['actmovies']) > item:
             playurl = self.allmovidesdata[page]['actmovies'][item]['url']
-            print(playurl)
             self.playMovieUrl(playurl,page)
             
     def playMovieUrl(self,playpageurl,page):
-        res = requests.get(playpageurl)
+        playurl = self.getPlayUrl(playpageurl)
+        if playurl != "":
+            try:
+                self.player.play(playurl, caption=page)
+            except:
+                self.player.play(playurl)  
+            
+    def loading(self, stopLoading = False):
+        if hasattr(self.player,'loadingAnimation'):
+            self.player.loadingAnimation('main', stop=stopLoading)
+            
+    def getPlayUrl(self,pageurl):
+        playurl = ""
+        res = requests.get(pageurl)
         if res.status_code == 200:
             bs = bs4.BeautifulSoup(res.content.decode('UTF-8','ignore'),'html.parser')
             selector = bs.select('#main > div.player-block > div > div.player-box > div > script')
@@ -362,15 +371,121 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
                 playerjson = json.loads(jsonstr)
                 encodeurl  = playerjson['url']
                 playurl = urllib.parse.unquote(encodeurl)
-                try:
-                    self.player.play(playurl, caption=page)
-                except:
-                    self.player.play(playurl)  
+        return playurl
             
-    def loading(self, stopLoading = False):
-        if hasattr(self.player,'loadingAnimation'):
-            self.player.loadingAnimation('main', stop=stopLoading)
+    def serchMovieDetail(self,url):
+        res = requests.get(url,verify=False)
+        print(url)
+        allmovies = []
+        if res.status_code != 200:
+            return allmovies
+        bs = bs4.BeautifulSoup(res.content.decode('UTF-8','ignore'),'html.parser')           
+        xlselector = bs.find_all('div', class_='module-tab-item tab-item') 
+        jjselector = bs.find_all('div', class_='module-blocklist scroll-box scroll-box-y')
         
+        if xlselector and jjselector:
+            xl = xlselector[0]
+            jj = jjselector[0]
+            if xl is None:
+                return allmovies
+            
+            xlinfo = xl.select('span')
+            
+            if xlinfo is None:
+                return allmovies
+            
+            playname = xlinfo[0].string
+            
+            if jj is None:
+                return allmovies
+            
+            moviegroup = jj.select('div > a')
+            if moviegroup:
+                for movieinfo in moviegroup:
+                    movieurl = self.dyxsurl + movieinfo.get('href')
+                    playname = playname + movieinfo.select('span')[0].string
+                    playurl = self.getPlayUrl(movieurl)
+                    if playurl != "":
+                        allmovies.append([playname,playurl])
+        
+        '''
+        if xlselector and jjselector:
+            xlnames = []
+            movieurls = []
+            i = 0
+            for xl in xlselector:
+                xlinfo = xl.select('span')
+                if xlinfo:
+                    playname = xlinfo[0].string
+                    jj = jjselector[i]
+                    if jj:
+                        moviegroup = jj.select('div > a')
+                        if moviegroup:
+                            for movieinfo in moviegroup:
+                                movieurl = self.dyxsurl + movieinfo.get('href')
+                                playname = playname + movieinfo.select('span')[0].string
+                                playurl = self.getPlayUrl(movieurl)
+                                if playurl != "":
+                                    allmovies.append([playname,playurl])
+                i = i + 1
+        '''
+        return allmovies
+
+    def searchMoive(self,wd):
+        medias = []
+        if len(wd) > 0:
+            searchurl = self.dyxsurl +'/search-' + urllib.parse.quote(wd,encoding='utf-8') + '-------------/'
+            res = requests.get(searchurl,verify=False)
+            if res.status_code == 200:
+                bs = bs4.BeautifulSoup(res.content.decode('UTF-8','ignore'),'html.parser')
+                selector = bs.find_all('div', class_='module-items')
+                for moduleitem in selector:
+                    for item in moduleitem:
+                        novideo = item.select('div.video-info > div.video-info-footer > div > i')
+                        if len(novideo) > 0:
+                            continue
+                        try:
+                            imageinfo = item.select('div.module-item-cover > a > img')[0]
+                        except:
+                            imageinfo = item.select('div.module-item-cover > div > img')[0]
+                        imgurl = self.dyxsurl + imageinfo.get('data-src')
+                        try:
+                            nameinfo = item.select('div.module-item-titlebox > a')[0]
+                            name = nameinfo.string
+                        except:
+                            nameinfo = item.select('div.video-info > div.video-info-header > h3 > a')[0]
+                            name = nameinfo.string
+                        detal = item.select('div.video-info > div.video-info-main > div:nth-child(3) > div')[0]
+                        try:
+                            dateinfo = item.select('div.video-info > div.video-info-header > div > a')[1]
+                            date = dateinfo.string
+                        except:
+                            date = ""
+                        url = self.dyxsurl + nameinfo.get('href')
+                        mediainfo = {}
+                        if name.find(wd) > 0:
+                            mediainfo["name"] = name
+                            mediainfo["pic"] = imgurl
+                            mediainfo["summary"] = detal.string
+                            mediainfo["pub_date"] = date
+                            mediainfo["urls"] = self.serchMovieDetail(url)
+                            if len(mediainfo["urls"]) > 0:
+                                medias.append(mediainfo)
+                            if len(medias) > 9:
+                                return medias
+        return medias
+           
+    def onPlayerSearch(self, dispatchId, searchId, wd, limit):
+        try:
+            if self.dyxsurl == "":
+                result = []
+            else:
+                result = self.searchMoive(wd)
+            print(result)
+            self.player.dispatchResult(dispatchId, searchId=searchId, wd=wd, result=result)
+        except:
+            self.player.dispatchResult(dispatchId, searchId=searchId, wd=wd, result=[])
+
 def newPlugin(player:StellarPlayer.IStellarPlayer,*arg):
     plugin = dyxsplugin(player)
     return plugin
