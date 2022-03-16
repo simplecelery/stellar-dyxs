@@ -12,6 +12,90 @@ import urllib3
 
 dyxx_urls = ['http://dyxs11.com','http://dyxs12.com','http://dyxs13.com','http://dyxs14.com','http://dyxs15.com','http://dyxs6.xyz', 'http://dyxs7.xyz', 'http://dyxs8.xyz', 'http://dyxs9.xyz', 'http://dyxs16.xyz', 'http://dyxs17.xyz','http://dianying.in', 'http://dianying.im', 'http://dianyingim.com'] 
 
+def getPlayUrl(pageurl,xlname):
+    playurl = ""
+    res = requests.get(pageurl)
+    if res.status_code == 200:
+        bs = bs4.BeautifulSoup(res.content.decode('UTF-8','ignore'),'html.parser')
+        selector = bs.select('#main > div.player-block > div > div.player-box > div > script')
+        if selector:
+            scriptitem = selector[1]
+            jsonstr = re.findall(r"var player_aaaa=(.+)",scriptitem.string)[0]
+            playerjson = json.loads(jsonstr)
+            encodeurl  = playerjson['url']
+            playurl = urllib.parse.unquote(encodeurl)
+    if playurl != "":
+        return [xlname,playurl]
+    else:
+        return None
+    
+class GetPlayUrlThread(threading.Thread):
+    def __init__(self, searchurl,name):
+        threading.Thread.__init__(self)
+        self.searchurl = searchurl
+        self.xlname = name
+        
+    def run(self):
+        self.result = getPlayUrl(self.searchurl,self.xlname)
+    def get_result(self):
+        try:
+            return self.result
+        except Exception:
+            return None
+    
+    
+def serchMovieDetail(mediainfo,weburl):
+    url = mediainfo["url"]
+    resinfo = {}
+    resinfo["name"] = mediainfo["name"]
+    resinfo["pic"] = mediainfo["pic"]
+    resinfo["summary"] = mediainfo["summary"]
+    resinfo["pub_date"] = mediainfo["pub_date"]
+    res = requests.get(url,verify=False)
+    allmovies = []
+    if res.status_code != 200:
+        return allmovies
+    bs = bs4.BeautifulSoup(res.content.decode('UTF-8','ignore'),'html.parser')           
+    xlselector = bs.find_all('div', class_='module-tab-item tab-item') 
+    jjselector = bs.find_all('div', class_='module-blocklist scroll-box scroll-box-y')
+    li = []
+    if xlselector and jjselector:
+        xlnames = []
+        movieurls = []
+        i = 0
+        for xl in xlselector:
+            xlinfo = xl.select('span')
+            if xlinfo:
+                playname = xlinfo[0].string
+                jj = jjselector[i]
+                if jj:
+                    moviegroup = jj.select('div > a')
+                    if moviegroup:
+                        for movieinfo in moviegroup:
+                            movieurl = weburl + movieinfo.get('href')
+                            playname = playname + movieinfo.select('span')[0].string
+                            t = GetPlayUrlThread(movieurl,playname)
+                            li.append(t)
+                            t.start()
+            i = i + 1
+    return [resinfo,li]
+
+class GetMediaDetailThread(threading.Thread):
+    def __init__(self, mediainfo,weburl):
+        threading.Thread.__init__(self)
+        self.mediainfo = mediainfo
+        self.weburl = weburl
+    
+    def run(self):
+        self.result = serchMovieDetail(self.mediainfo,self.weburl)
+    
+    def get_result(self):
+        try:
+            return self.result
+        except Exception:
+            return None
+
+
 
 def concatUrl(url1, url2):
     splits = re.split(r'/+',url1)
@@ -432,7 +516,9 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
         return allmovies
 
     def searchMoive(self,wd):
+        print("search:" + wd)
         medias = []
+        li = []
         if len(wd) > 0:
             searchurl = self.dyxsurl +'/search-' + urllib.parse.quote(wd,encoding='utf-8') + '-------------/'
             res = requests.get(searchurl,verify=False)
@@ -468,12 +554,34 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
                             mediainfo["pic"] = imgurl
                             mediainfo["summary"] = detal.string
                             mediainfo["pub_date"] = date
-                            mediainfo["urls"] = self.serchMovieDetail(url)
-                            if len(mediainfo["urls"]) > 0:
-                                medias.append(mediainfo)
-                            if len(medias) > 9:
-                                return medias
-        return medias
+                            mediainfo["url"] = url
+                            t = GetMediaDetailThread(mediainfo,self.dyxsurl)
+                            li.append(t)
+            for i in li:
+                i.start()
+            for i in li:
+                i.join()  
+            allres = []
+            for i in li:
+                allres.append(i.get_result())
+            for res in allres:
+                if res:
+                    for t in res[1]:
+                        t.join()
+            
+            for res in allres:
+                if res:
+                    allmovies = []
+                    resinfo = res[0]
+                    for t in res[1]:
+                        t.join()
+                        playurl = t.get_result()
+                        if playurl != None:
+                           allmovies.append(playurl) 
+                    if len(allmovies) > 0:
+                        resinfo["urls"] = allmovies
+                        medias.append(resinfo)
+            return medias
            
     def onPlayerSearch(self, dispatchId, searchId, wd, limit):
         try:
