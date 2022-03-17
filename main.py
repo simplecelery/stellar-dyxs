@@ -44,7 +44,7 @@ class GetPlayUrlThread(threading.Thread):
             return None
     
     
-def serchMovieDetail(mediainfo,weburl):
+def getMovieDetail(mediainfo,weburl):
     url = mediainfo["url"]
     resinfo = {}
     resinfo["name"] = mediainfo["name"]
@@ -87,7 +87,7 @@ class GetMediaDetailThread(threading.Thread):
         self.weburl = weburl
     
     def run(self):
-        self.result = serchMovieDetail(self.mediainfo,self.weburl)
+        self.result = getMovieDetail(self.mediainfo,self.weburl)
     
     def get_result(self):
         try:
@@ -330,6 +330,8 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
         res = requests.get(mediapageurl,verify=False)
         picurl = ''
         infostr = ''
+        allmovies = []
+        self.xls = []
         if res.status_code == 200:
             bs = bs4.BeautifulSoup(res.content.decode('UTF-8','ignore'),'html.parser')
             
@@ -352,7 +354,6 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
                     if xlinfo:
                         xlname = xlinfo[0].string
                         self.xls.append({'title':xlname})
-                allmovies = []
                 for jj in jjselector:
                     movies = []
                     moviegroup = jj.select('div > a')
@@ -457,64 +458,6 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
                 playurl = urllib.parse.unquote(encodeurl)
         return playurl
             
-    def serchMovieDetail(self,url):
-        res = requests.get(url,verify=False)
-        print(url)
-        allmovies = []
-        if res.status_code != 200:
-            return allmovies
-        bs = bs4.BeautifulSoup(res.content.decode('UTF-8','ignore'),'html.parser')           
-        xlselector = bs.find_all('div', class_='module-tab-item tab-item') 
-        jjselector = bs.find_all('div', class_='module-blocklist scroll-box scroll-box-y')
-        
-        if xlselector and jjselector:
-            xl = xlselector[0]
-            jj = jjselector[0]
-            if xl is None:
-                return allmovies
-            
-            xlinfo = xl.select('span')
-            
-            if xlinfo is None:
-                return allmovies
-            
-            playname = xlinfo[0].string
-            
-            if jj is None:
-                return allmovies
-            
-            moviegroup = jj.select('div > a')
-            if moviegroup:
-                for movieinfo in moviegroup:
-                    movieurl = self.dyxsurl + movieinfo.get('href')
-                    playname = playname + movieinfo.select('span')[0].string
-                    playurl = self.getPlayUrl(movieurl)
-                    if playurl != "":
-                        allmovies.append([playname,playurl])
-        
-        '''
-        if xlselector and jjselector:
-            xlnames = []
-            movieurls = []
-            i = 0
-            for xl in xlselector:
-                xlinfo = xl.select('span')
-                if xlinfo:
-                    playname = xlinfo[0].string
-                    jj = jjselector[i]
-                    if jj:
-                        moviegroup = jj.select('div > a')
-                        if moviegroup:
-                            for movieinfo in moviegroup:
-                                movieurl = self.dyxsurl + movieinfo.get('href')
-                                playname = playname + movieinfo.select('span')[0].string
-                                playurl = self.getPlayUrl(movieurl)
-                                if playurl != "":
-                                    allmovies.append([playname,playurl])
-                i = i + 1
-        '''
-        return allmovies
-
     def searchMoive(self,wd):
         print("search:" + wd)
         medias = []
@@ -557,8 +500,7 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
                             mediainfo["url"] = url
                             t = GetMediaDetailThread(mediainfo,self.dyxsurl)
                             li.append(t)
-            for i in li:
-                i.start()
+                            t.start()
             for i in li:
                 i.join()  
             allres = []
