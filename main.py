@@ -267,7 +267,9 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
                     imageinfo = item.select('div.module-item-cover > a > img')[0]
                 except:
                     imageinfo = item.select('div.module-item-cover > div > img')[0]
-                imgurl = self.dyxsurl + imageinfo.get('data-src')
+                imgurl = imageinfo.get('data-src')
+                if imgurl.find('//') < 0:
+                    imgurl = self.dyxsurl + imgurl
                 try:
                     nameinfo = item.select('div.module-item-titlebox > a')[0]
                     name = nameinfo.string
