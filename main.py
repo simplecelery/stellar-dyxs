@@ -10,7 +10,7 @@ import math
 import json
 import urllib3
 
-dyxx_urls = ['http://dyxs11.com','http://dyxs12.com','http://dyxs13.com','http://dyxs14.com','http://dyxs15.com','http://dyxs6.xyz', 'http://dyxs7.xyz', 'http://dyxs8.xyz', 'http://dyxs9.xyz', 'http://dyxs16.xyz', 'http://dyxs17.xyz','http://dianying.in', 'http://dianying.im', 'http://dianyingim.com'] 
+dyxx_urls = ['https://www.hsyipos.com/','http://dyxs11.com','http://dyxs12.com','http://dyxs13.com','http://dyxs14.com','http://dyxs15.com','http://dyxs6.xyz', 'http://dyxs7.xyz', 'http://dyxs8.xyz', 'http://dyxs9.xyz', 'http://dyxs16.xyz', 'http://dyxs17.xyz','http://dianying.in', 'http://dianying.im', 'http://dianyingim.com'] 
 
 def getPlayUrl(pageurl,xlname):
     playurl = ""
