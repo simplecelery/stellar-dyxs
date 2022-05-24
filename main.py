@@ -10,7 +10,7 @@ import math
 import json
 import urllib3
 
-dyxx_urls = ['http://dyxs6.xyz', 'http://dyxs7.xyz', 'http://dyxs8.xyz', 'http://dyxs9.xyz', 'http://dyxs16.xyz', 'http://dyxs17.xyz','http://dyxs11.com','http://dyxs12.com','http://dyxs13.com','http://dyxs14.com','http://dyxs15.com','http://dianying.in', 'http://dianying.im', 'http://dianyingim.com'] 
+dyxx_urls = ['http://dyxs8.xyz', 'http://dyxs7.xyz', 'http://dyxs6.xyz', 'http://dyxs9.xyz', 'http://dyxs16.xyz', 'http://dyxs17.xyz','http://dyxs11.com','http://dyxs12.com','http://dyxs13.com','http://dyxs14.com','http://dyxs15.com','http://dianying.in', 'http://dianying.im', 'http://dianyingim.com'] 
 
 def getPlayUrl(pageurl,xlname):
     playurl = ""
@@ -124,28 +124,45 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
         self.nextpage = ''
         self.lastpage = ''
         self.xls = []
+        self.addarr = []
         self.allmovidesdata = {}
         urllib3.disable_warnings()
     
     def start(self):
         super().start()
         self.dyxsurl = self.getDyxsUrl()
+        print('--------------------------')
+        print(self.dyxsurl)
         if self.dyxsurl == '':
             self.player.showText('无法打开电影先生网站')
         else:
             self.onMainMenuReload(self.dyxsurl)
     
+    def checkDyxsUrl(self,url):
+        urlCanOpen = True
+        try:
+            res = requests.get(url,timeout=5,verify=False)
+        except :
+            urlCanOpen = False
+        if urlCanOpen:
+            if res.status_code == 200:
+                bs = bs4.BeautifulSoup(res.content.decode('UTF-8','ignore'),'html.parser')
+                picselector = bs.select('#header > div.header-content > div.dianying-im')
+                if picselector:
+                    self.addarr.append(url)
+    
+    
     def getDyxsUrl(self):
+        li = []
+        self.addarr = []
         for url in dyxx_urls:
-            urlCanOpen = True
-            try:
-                res = requests.get(url,timeout=10,verify=False)
-            except :
-                urlCanOpen = False
-            if urlCanOpen:
-                if res.status_code == 200:
-                    print("电影先生使用网址:" + url)
-                    return url
+            t = threading.Thread(target=self.checkDyxsUrl,args=(url,))
+            li.append(t)
+            t.start()
+        for t in li:
+            t.join()
+        if len(self.addarr) > 0:
+            return self.addarr[0]
         return ''
     
     def show(self):
@@ -235,6 +252,7 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
     def onMainMenuReload(self,pageurl):
         controls = []
         self.player.removeControl('main','canremovemenugroup')
+        print(pageurl)
         res = requests.get(pageurl,verify=False)
         if res.status_code == 200:         
             bs = bs4.BeautifulSoup(res.content.decode('UTF-8','ignore'),'html.parser')
