@@ -24,8 +24,15 @@ def getPlayUrl(pageurl,xlname):
             playerjson = json.loads(jsonstr)
             encodeurl  = playerjson['url']
             playurl = urllib.parse.unquote(encodeurl)
+            print(playurl)
+            checklen = playurl.find('&dianying')
+            if  checklen > 0:
+                playurl = playurl[0:checklen]
     if playurl != "":
-        return [xlname,playurl]
+        if playurl.find('.m3u8') > 0:
+            return [xlname,playurl]
+        else:
+            return None
     else:
         return None
     
@@ -347,6 +354,7 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
         self.loading()
         mediapageurl = self.medias[item]['url']
         medianame = self.medias[item]['title']
+        print(mediapageurl)
         res = requests.get(mediapageurl,verify=False)
         picurl = ''
         infostr = ''
@@ -386,6 +394,8 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
                             movies.append({'playname':moviename,'url':movieurl})
                     allmovies.append(movies)
         
+        #realmovies = self.getRealUrl(allmovies)
+        #print(realmovies)
         actmovies = []
         if len(allmovies) > 0:
             actmovies = allmovies[0]
@@ -416,6 +426,27 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
         result,control = self.player.doModal(medianame,800,600,medianame,controls)  
         if result == False:
             del self.allmovidesdata[medianame]
+        
+    def getRealUrl(self,movies):
+        li = []
+        for movie in movies:
+            print(movie)
+            moviename = movie['playname']
+            movieurl = movie['url']
+            t = GetPlayUrlThread(moviename,movieurl)
+            li.append(t)
+            t.start()
+        for i in li:
+            i.join()  
+        allres = []
+        for i in li:
+            playurldetail = i.get_result()
+            if playurldetail:
+                xlname = playurldetail[0]
+                playurl = playurldetail[1]
+                if playurl.find('.m3u8') > 0 or playurl.find('.mp4') > 0:
+                    allres.append({'playname':xlname,'url':playurl})
+        print(allres)
         
     def onClickFirstPage(self, *args):
         if self.firstpage == '':
@@ -478,6 +509,10 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
                 playerjson = json.loads(jsonstr)
                 encodeurl  = playerjson['url']
                 playurl = urllib.parse.unquote(encodeurl)
+                checklen = playurl.find('&dianying')
+                if  checklen > 0:
+                    playurl = playurl[0:checklen]
+                    print(playurl)
         return playurl
             
     def searchMoive(self,wd):
