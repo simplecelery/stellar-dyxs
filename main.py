@@ -12,7 +12,7 @@ import urllib3
 
 dyxx_urls = ['http://dyxs8.xyz', 'http://dyxs7.xyz', 'http://dyxs6.xyz', 'http://dyxs9.xyz', 'http://dyxs16.xyz', 'http://dyxs17.xyz','http://dyxs11.com','http://dyxs12.com','http://dyxs13.com','http://dyxs14.com','http://dyxs15.com','http://dianying.in', 'http://dianying.im', 'http://dianyingim.com'] 
 
-def getPlayUrl(pageurl,xlname):
+def getPlayUrl(pageurl,medianame,returnjson):
     playurl = ""
     res = requests.get(pageurl)
     if res.status_code == 200:
@@ -24,26 +24,31 @@ def getPlayUrl(pageurl,xlname):
             playerjson = json.loads(jsonstr)
             encodeurl  = playerjson['url']
             playurl = urllib.parse.unquote(encodeurl)
-            print(playurl)
             checklen = playurl.find('&dianying')
+            if  checklen == 0:
+                checklen = playurl.find('&dianshiju')
             if  checklen > 0:
                 playurl = playurl[0:checklen]
     if playurl != "":
         if playurl.find('.m3u8') > 0:
-            return [xlname,playurl]
+            if returnjson:
+                return {"playname":medianame,"url":playurl}
+            else:
+                return [medianame,playurl]
         else:
             return None
     else:
         return None
     
 class GetPlayUrlThread(threading.Thread):
-    def __init__(self, searchurl,name):
+    def __init__(self, searchurl,name,returnjson):
         threading.Thread.__init__(self)
         self.searchurl = searchurl
-        self.xlname = name
+        self.medianame = name
+        self.returnjson = returnjson
         
     def run(self):
-        self.result = getPlayUrl(self.searchurl,self.xlname)
+        self.result = getPlayUrl(self.searchurl,self.medianame,self.returnjson)
     def get_result(self):
         try:
             return self.result
@@ -81,7 +86,7 @@ def getMovieDetail(mediainfo,weburl):
                         for movieinfo in moviegroup:
                             movieurl = weburl + movieinfo.get('href')
                             playname = playname + movieinfo.select('span')[0].string
-                            t = GetPlayUrlThread(movieurl,playname)
+                            t = GetPlayUrlThread(movieurl,playname,False)
                             li.append(t)
                             t.start()
             i = i + 1
@@ -101,8 +106,6 @@ class GetMediaDetailThread(threading.Thread):
             return self.result
         except Exception:
             return None
-
-
 
 def concatUrl(url1, url2):
     splits = re.split(r'/+',url1)
@@ -354,12 +357,12 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
         self.loading()
         mediapageurl = self.medias[item]['url']
         medianame = self.medias[item]['title']
-        print(mediapageurl)
         res = requests.get(mediapageurl,verify=False)
         picurl = ''
         infostr = ''
         allmovies = []
         self.xls = []
+        resdata = []
         if res.status_code == 200:
             bs = bs4.BeautifulSoup(res.content.decode('UTF-8','ignore'),'html.parser')
             
@@ -375,7 +378,13 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
             if infoselector:
                 for info in infoselector:
                     infostr = infostr + info.getText() + '\n'
-            
+            date = ""
+            try:
+                dateinfo = bs.select('div.video-info > div.video-info-header > div > a')[1]
+                date = dateinfo.string
+            except:
+                date = ""
+            '''
             xlselector = bs.find_all('div', class_='module-tab-item tab-item') 
             jjselector = bs.find_all('div', class_='module-blocklist scroll-box scroll-box-y')
             if xlselector and jjselector:
@@ -393,6 +402,40 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
                             moviename = movieinfo.select('span')[0].string
                             movies.append({'playname':moviename,'url':movieurl})
                     allmovies.append(movies)
+            '''
+            xlselector = bs.find_all('div', class_='module-tab-item tab-item') 
+            jjselector = bs.find_all('div', class_='module-blocklist scroll-box scroll-box-y')
+            if xlselector and jjselector:
+                i = 0
+                for xl in xlselector:
+                    xlinfo = xl.select('span')
+                    if xlinfo:
+                        xlname = xlinfo[0].string
+                        print(xlname)
+                        jj = jjselector[i]
+                        i = i + 1
+                        if jj:
+                            moviegroup = jj.select('div > a')
+                            if moviegroup:
+                                playurls = []
+                                li = []
+                                for movieinfo in moviegroup:
+                                    movieurl = self.dyxsurl + movieinfo.get('href')
+                                    meidaname = movieinfo.select('span')[0].string
+                                    t = GetPlayUrlThread(movieurl,meidaname,True)
+                                    li.append(t)
+                                    t.start()
+                                for t in li:
+                                    t.join()
+                                    res = t.get_result()
+                                    if res:
+                                        playurls.append(res)
+                                if len(playurls) > 0:
+                                    resdata.append({"xl":xlname,"media":playurls})
+        for data in resdata:
+            self.xls.append({'title':data["xl"]});
+            allmovies.append(data["media"])
+        
         
         #realmovies = self.getRealUrl(allmovies)
         #print(realmovies)
@@ -433,7 +476,7 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
             print(movie)
             moviename = movie['playname']
             movieurl = movie['url']
-            t = GetPlayUrlThread(moviename,movieurl)
+            t = GetPlayUrlThread(moviename,movieurl,False)
             li.append(t)
             t.start()
         for i in li:
@@ -483,7 +526,12 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
     def on_movieurl_click(self, page, listControl, item, itemControl):
         if len(self.allmovidesdata[page]['actmovies']) > item:
             playurl = self.allmovidesdata[page]['actmovies'][item]['url']
-            self.playMovieUrl(playurl,page)
+            #self.playMovieUrl(playurl,page)
+            if playurl != "":
+                try:
+                    self.player.play(playurl, caption=page)
+                except:
+                    self.player.play(playurl)
             
     def playMovieUrl(self,playpageurl,page):
         playurl = self.getPlayUrl(playpageurl)
@@ -555,6 +603,7 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
                             mediainfo["summary"] = detal.string
                             mediainfo["pub_date"] = date
                             mediainfo["url"] = url
+                            print(url)
                             t = GetMediaDetailThread(mediainfo,self.dyxsurl)
                             li.append(t)
                             t.start()
