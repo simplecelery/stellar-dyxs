@@ -24,9 +24,7 @@ def getPlayUrl(pageurl,medianame,returnjson):
             playerjson = json.loads(jsonstr)
             encodeurl  = playerjson['url']
             playurl = urllib.parse.unquote(encodeurl)
-            checklen = playurl.find('&dianying')
-            if  checklen == 0:
-                checklen = playurl.find('&dianshiju')
+            checklen = playurl.find('&')
             if  checklen > 0:
                 playurl = playurl[0:checklen]
     if playurl != "":
@@ -557,7 +555,7 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
                 playerjson = json.loads(jsonstr)
                 encodeurl  = playerjson['url']
                 playurl = urllib.parse.unquote(encodeurl)
-                checklen = playurl.find('&dianying')
+                checklen = playurl.find('&')
                 if  checklen > 0:
                     playurl = playurl[0:checklen]
                     print(playurl)
