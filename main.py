@@ -10,16 +10,17 @@ import math
 import json
 import urllib3
 
-dyxx_urls = ['http://dyxs8.xyz', 'http://dyxs7.xyz', 'http://dyxs6.xyz', 'http://dyxs9.xyz', 'http://dyxs16.xyz', 'http://dyxs17.xyz','http://dyxs11.com','http://dyxs12.com','http://dyxs13.com','http://dyxs14.com','http://dyxs15.com','http://dianying.in', 'http://dianying.im', 'http://dianyingim.com'] 
+#dyxx_urls = ['http://dyxs9.xyz','http://dyxs14.com','http://dyxs8.xyz', 'http://dyxs7.xyz', 'http://dyxs6.xyz',  'http://dyxs16.xyz', 'http://dyxs17.xyz','http://dyxs11.com','http://dyxs12.com','http://dyxs13.com','http://dyxs15.com','http://dianying.in', 'http://dianying.im', 'http://dianyingim.com'] 
+dyxx_urls = ['http://dyxs11.com','http://dyxs12.com','http://dyxs13.com','http://dyxs14.com','http://dyxs15.com','http://dyxs16.com','http://dyxs17.com','http://dyxs19.com','http://dyxs19.com','http://dyxs20.com','http://DianYingim.in','http://DianYingim.com'] 
 
 def getPlayUrl(pageurl,medianame,returnjson):
     playurl = ""
-    res = requests.get(pageurl)
+    res = requests.get(pageurl,verify=False, headers={'User-Agent': 'Mozilla/5.0'})
     if res.status_code == 200:
         bs = bs4.BeautifulSoup(res.content.decode('UTF-8','ignore'),'html.parser')
         selector = bs.select('#main > div.player-block > div > div.player-box > div > script')
         if selector:
-            scriptitem = selector[1]
+            scriptitem = selector[0]
             jsonstr = re.findall(r"var player_aaaa=(.+)",scriptitem.string)[0]
             playerjson = json.loads(jsonstr)
             encodeurl  = playerjson['url']
@@ -47,6 +48,7 @@ class GetPlayUrlThread(threading.Thread):
         
     def run(self):
         self.result = getPlayUrl(self.searchurl,self.medianame,self.returnjson)
+        
     def get_result(self):
         try:
             return self.result
@@ -61,7 +63,7 @@ def getMovieDetail(mediainfo,weburl):
     resinfo["pic"] = mediainfo["pic"]
     resinfo["summary"] = mediainfo["summary"]
     resinfo["pub_date"] = mediainfo["pub_date"]
-    res = requests.get(url,verify=False)
+    res = requests.get(url,verify=False, headers={'User-Agent': 'Mozilla/5.0'})
     allmovies = []
     if res.status_code != 200:
         return allmovies
@@ -149,7 +151,7 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
     def checkDyxsUrl(self,url):
         urlCanOpen = True
         try:
-            res = requests.get(url,timeout=5,verify=False)
+            res = requests.get(url,timeout=10,verify=False, headers={'User-Agent': 'Mozilla/5.0'})
         except :
             urlCanOpen = False
         if urlCanOpen:
@@ -260,8 +262,7 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
     def onMainMenuReload(self,pageurl):
         controls = []
         self.player.removeControl('main','canremovemenugroup')
-        print(pageurl)
-        res = requests.get(pageurl,verify=False)
+        res = requests.get(pageurl,verify=False, headers={'User-Agent': 'Mozilla/5.0'})
         if res.status_code == 200:         
             bs = bs4.BeautifulSoup(res.content.decode('UTF-8','ignore'),'html.parser')
             selector = bs.find_all('div', class_='module-items')
@@ -323,7 +324,7 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
         self.nextpage = ''
         self.lastpage = ''
         self.cur_page = ''
-        res = requests.get(pageurl,verify=False)
+        res = requests.get(pageurl,verify=False, headers={'User-Agent': 'Mozilla/5.0'})
         if res.status_code == 200:
             bs = bs4.BeautifulSoup(res.content.decode('UTF-8','ignore'),'html.parser')
             selector = bs.find_all('div', class_='module-items')
@@ -355,7 +356,7 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
         self.loading()
         mediapageurl = self.medias[item]['url']
         medianame = self.medias[item]['title']
-        res = requests.get(mediapageurl,verify=False)
+        res = requests.get(mediapageurl,verify=False, headers={'User-Agent': 'Mozilla/5.0'})
         picurl = ''
         infostr = ''
         allmovies = []
@@ -409,7 +410,6 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
                     xlinfo = xl.select('span')
                     if xlinfo:
                         xlname = xlinfo[0].string
-                        print(xlname)
                         jj = jjselector[i]
                         i = i + 1
                         if jj:
@@ -433,7 +433,6 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
         for data in resdata:
             self.xls.append({'title':data["xl"]});
             allmovies.append(data["media"])
-        
         
         #realmovies = self.getRealUrl(allmovies)
         #print(realmovies)
@@ -471,7 +470,6 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
     def getRealUrl(self,movies):
         li = []
         for movie in movies:
-            print(movie)
             moviename = movie['playname']
             movieurl = movie['url']
             t = GetPlayUrlThread(moviename,movieurl,False)
@@ -487,7 +485,6 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
                 playurl = playurldetail[1]
                 if playurl.find('.m3u8') > 0 or playurl.find('.mp4') > 0:
                     allres.append({'playname':xlname,'url':playurl})
-        print(allres)
         
     def onClickFirstPage(self, *args):
         if self.firstpage == '':
@@ -545,7 +542,7 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
             
     def getPlayUrl(self,pageurl):
         playurl = ""
-        res = requests.get(pageurl)
+        res = requests.get(pageurl, headers={'User-Agent': 'Mozilla/5.0'})
         if res.status_code == 200:
             bs = bs4.BeautifulSoup(res.content.decode('UTF-8','ignore'),'html.parser')
             selector = bs.select('#main > div.player-block > div > div.player-box > div > script')
@@ -558,7 +555,6 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
                 checklen = playurl.find('&')
                 if  checklen > 0:
                     playurl = playurl[0:checklen]
-                    print(playurl)
         return playurl
             
     def searchMoive(self,wd):
@@ -567,7 +563,7 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
         li = []
         if len(wd) > 0:
             searchurl = self.dyxsurl +'/search-' + urllib.parse.quote(wd,encoding='utf-8') + '-------------/'
-            res = requests.get(searchurl,verify=False)
+            res = requests.get(searchurl,verify=False, headers={'User-Agent': 'Mozilla/5.0'})
             if res.status_code == 200:
                 bs = bs4.BeautifulSoup(res.content.decode('UTF-8','ignore'),'html.parser')
                 selector = bs.find_all('div', class_='module-items')
@@ -601,7 +597,6 @@ class dyxsplugin(StellarPlayer.IStellarPlayerPlugin):
                             mediainfo["summary"] = detal.string
                             mediainfo["pub_date"] = date
                             mediainfo["url"] = url
-                            print(url)
                             t = GetMediaDetailThread(mediainfo,self.dyxsurl)
                             li.append(t)
                             t.start()
